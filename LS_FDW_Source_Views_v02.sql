@@ -1,5 +1,40 @@
---USE [sandbox_mike]
 --GO
+/***************************************************************************************************************************
+**                                        CREATE INDEXES ON TOP OF SOURCE TABLES
+** by: mmccanlies       03/16/2017
+** 
+***************************************************************************************************************************/
+GO
+USE [fdw_raw]
+GO
+
+--IF EXISTS ( SELECT COUNT(*) FROM [sys].[indexes] WHERE name = 'NCI_ns_salesOrder_line' )
+--    DROP INDEX [NCI_ns_salesOrder_line] ON [fdw_raw].[ns_salesOrde] 
+--GO
+--CREATE NONCLUSTERED INDEX NCI_ns_salesOrderItemList_line ON [ns_salesOrder_ItemList] ( [internalId], [line], [item-internalId] )
+GO
+IF EXISTS ( SELECT COUNT(*) FROM [sys].[indexes] WHERE name = 'NCI_ns_salesOrderItemList_line' )
+    DROP INDEX [NCI_ns_salesOrderItemList_line] ON [fdw_raw].[ns_salesOrder_itemList]
+GO
+CREATE NONCLUSTERED INDEX NCI_vw_salesOrderItemList_line ON [ns_salesOrder_ItemList] ( [internalId], [customFieldList-custcol_line_id], [item-internalId] )
+GO
+IF EXISTS ( SELECT COUNT(*) FROM [sys].[indexes] WHERE name = 'NCI_vw_invoiceItemList_line' )
+    DROP INDEX [NCI_ns_invoiceItemList_line] ON [fdw_raw].[ns_invoice_ItemList]
+GO
+CREATE NONCLUSTERED INDEX NCI_vw_invoiceItemList_line ON [ns_invoice_ItemList] ( [internalId], [customFieldList-custcol_line_id], [item-internalId] )
+INCLUDE ( [internalId] )
+GO
+IF EXISTS ( SELECT COUNT(*) FROM [sys].[indexes] WHERE name = 'NCI_vw_invoice_createdFromId' )
+    DROP INDEX [NCI_ns_invoice] ON [fdw_raw].[ns_invoice] 
+GO
+-- This index won't work because createdFrom-internalId contains NULLs
+CREATE NONCLUSTERED INDEX NCI_ns_invoice_createdFromId ON [ns_invoice] ( [createdFrom-internalId], [tranId] )
+INCLUDE ( [internalId] )
+
+SELECT [internalId], [customFieldList-custcol_line_id], [item-internalId]
+FROM ns_salesOrder_itemList
+
+USE [sandbox_mike]
 /***************************************************************************************************************************
 **                                        BUILD VIEWS ON TOP OF SOURCE TABLES
 ** by: mmccanlies       03/07/2017
@@ -265,6 +300,7 @@ SELECT
 , [ns_custom_sales_out].[customFieldList-custrecord_sales_out_original_line_num]
 , [ns_custom_sales_out].[customFieldList-custrecord_sales_out_date]
 , [ns_custom_sales_out].[customFieldList-custrecord_sales_out_purchasedate]
+, [ns_custom_sales_out].[customFieldList-custrecord_sales_out_install_base]
 , [ns_custom_sales_out].[customFieldList-custrecord_sales_out_serial_number]
 , [ns_custom_sales_out].[customFieldList-custrecord_sales_out_status]
 , [ns_custom_sales_out].[customFieldList-custrecord_sales_out_item]
@@ -427,6 +463,18 @@ SELECT
 , [DBcreated]
 , [DBlastModified]
 FROM [fdw_raw].[fdw_raw].[ns_returnAuthorization_itemList]
+
+
+
+IF object_id('vw_custom_defaultsalesperson', 'v') IS NOT NULL
+DROP VIEW [vw_custom_defaultsalesperson]
+GO
+CREATE VIEW [ns_custom_defaultSalesperson]
+AS
+SELECT *
+FROM [fdw_raw].[fdw_raw].[ns_custom_defaultSalesperson]
+
+
 
 /**************************************************************************************************************************
 **                                          END OF SCRIPT LS_FDW_SOURCE_VIEW                                             **

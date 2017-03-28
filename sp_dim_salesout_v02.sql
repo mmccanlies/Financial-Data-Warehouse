@@ -47,8 +47,6 @@ BEGIN TRY
           outCity, outState, outZip, outProvince, outCounty, outCountry, outEmail, outPhone, outSFPartnerNo, outSalesRegion, 
           outSalesOrderNo, outSalesOrder, outExternalId )
 
-
-
         SELECT DISTINCT
           ISNULL(CONVERT(int,[vw_custom_sales_out].[internalId]),-1) AS 'salesOutId'
         , ISNULL(CONVERT(int,CONVERT(numeric,[vw_custom_sales_out].[customFieldList-custrecord_sales_out_original_line_num])),1) AS 'salesOutLine'
@@ -86,7 +84,7 @@ BEGIN TRY
         , [vw_custom_sales_out].[externalId] AS 'outExternalId'
         FROM [vw_custom_sales_out]                                                      --268634
         RIGHT OUTER JOIN [xrf_index] ON [xrf_index].[salesOutId] = ISNULL(CONVERT(int,[vw_custom_sales_out].[internalId]),-1)
-                     AND [xrf_index].[salesOutLine] = ISNULL(TRY_CONVERT(int,[vw_custom_sales_out].[customFieldList-custrecord_sales_out_original_line_num]),1)
+                     AND [xrf_index].[salesOutLineId] = ISNULL(TRY_CONVERT(int,[vw_custom_sales_out].[customFieldList-custrecord_sales_out_original_line_num]),1)
         ORDER BY 1,2
         ;
         -- log result

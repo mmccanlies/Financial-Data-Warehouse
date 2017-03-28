@@ -15,8 +15,9 @@ GO
 ** Load fact_arr table. 
 ** dependencies:    xrf_Index               vw_subscription_list
 **                  dim_Subscription        vw_subscription_sequence
-** created:  2/20/2017   mmccanlies      created 
-** revised:  3/07/2017      "            Revised to use source views instead of source tables 
+** created:  02/20/2017   mmccanlies        created 
+** revised:  03/07/2017      "              Revised to use source views instead of source tables 
+**           03/17/2017      "              Modified to use vw_custom_subscription and new field names in xrf_index
 **************************************************************************************************/
 ALTER PROCEDURE [dbo].[sp_fact_arr] 
 (
@@ -43,8 +44,8 @@ BEGIN TRY
             TRUNCATE TABLE [fact_arr] ;
         -- insert follow on subscriptions like Renewals, Features and Add Seats
         INSERT INTO [fact_arr]
-        ( xrfIndexId, baseSubscriptionId, subscriptionId, salesOrderId, salesOrderLine, invoiceId, invoiceLine, invItemId, soItemId, 
-          salesOrgId, salesOutId, salesOutLine, classId, itemId, billToCustomerId, endCustomerId, resellerId, startDateId, endDateId, 
+        ( xrfIndexId, baseSubscriptionId, subscriptionId, salesOrderId, salesOrderItemLineId, invoiceId, invItemLineId, invItemId, salesOrderItemId, 
+          salesOrgId, salesOutId, salesOutLineId, classId, itemId, billToCustomerId, endCustomerId, resellerId, startDateId, endDateId, 
           invoiceAmt, invoiceAmtPerYr, arrAmtPerYr, creditAmt, seats, amplifyHrs, extremeHrs, vmrs, recordingHrs, 
           totalSeats, totalAmplifyHrs, totalVmrs, totalRecordingHrs, cumArrAmtPerYr, arrAmtChg, tierChg, seatsChg, termDaysChg, vmrsChg, 
           isNew, isRenewal, isLateRenew, renewGapDays, isCreditMemo, isFeature, isUpDngrade, isExpansion, isChurn )
@@ -52,19 +53,19 @@ BEGIN TRY
         SELECT DISTINCT
           [xrf_index].[xrfIndexId] AS 'xrfIndexId'
         , [xrf_index].[baseSubscriptionId] AS 'baseSubscriptionId'
-        , [vw_custom_subscription].[internalId] AS 'subscriptionId'
+        , [xrf_index].[subscriptionId] AS 'subscriptionId'
         , [xrf_index].[salesOrderId]  AS 'salesOrderId'
-        , [xrf_index].[salesOrderLine]  AS 'salesOrderLine'
+        , [xrf_index].[salesOrderItemLineId]  AS 'salesOrderLineId'
         , [xrf_index].[invoiceId]  AS 'invoiceId'
-        , [xrf_index].[invoiceLine]  AS 'invoiceLine'
+        , [xrf_index].[invItemLineId]  AS 'invoiceLineId'
         , [xrf_index].[invItemId]  AS 'invItemId'
-        , [xrf_index].[soItemId]  AS 'soItemId'
+        , [xrf_index].[salesOrderItemId]  AS 'soItemId'
 --2
         , [xrf_index].[salesOrgId]  AS 'salesOrgId'
         , [xrf_index].[salesOutId]  AS 'salesOutId'
-        , [xrf_index].[salesOutLine]  AS 'salesOutLine'
+        , [xrf_index].[salesOutLineId]  AS 'salesOutLineId'
         , [xrf_index].[classId]  AS 'classId'
-        , [vw_custom_subscription].[customFieldList-custrecord_subscription_item] AS 'itemId'
+        , [xrf_index].[itemId] AS 'itemId'
         , ISNULL([vw_custom_subscription].[customFieldList-custrecord_subscription_bill_to_customer],-1) AS 'billToCustomerId'
         , ISNULL([vw_custom_subscription].[customFieldList-custrecord_subscription_end_customer],-1) AS 'endCustomerId'
         , -1 AS resellerId   --, ISNULL([vw_custom_subscription].[customFieldList-custrecord_subscription_end_customer],-1) AS 'resellerId'
@@ -157,60 +158,60 @@ BEGIN TRY
 
         -- Insert new subscriptions
         INSERT INTO [fact_arr]
-        ( xrfIndexId, baseSubscriptionId, subscriptionId, salesOrderId, salesOrderLine, invoiceId, invoiceLine, invItemId, soItemId, 
-          salesOrgId, salesOutId, salesOutLine, classId, itemId, billToCustomerId, endCustomerId, resellerId, startDateId, endDateId, 
+        ( xrfIndexId, baseSubscriptionId, subscriptionId, salesOrderId, salesOrderItemLineId, invoiceId, invItemLineId, invItemId, salesOrderItemId, 
+          salesOrgId, salesOutId, salesOutLineId, classId, itemId, billToCustomerId, endCustomerId, resellerId, startDateId, endDateId, 
           invoiceAmt, invoiceAmtPerYr, arrAmtPerYr, creditAmt, seats, amplifyHrs, extremeHrs, vmrs, recordingHrs, 
           totalSeats, totalAmplifyHrs, totalVmrs, totalRecordingHrs, cumArrAmtPerYr, arrAmtChg, tierChg, seatsChg, termDaysChg, vmrsChg, 
           isNew, isRenewal, isLateRenew, renewGapDays, isCreditMemo, isFeature, isUpDngrade, isExpansion, isChurn )
         SELECT DISTINCT
           [xrf_index].[xrfIndexId]
         , [xrf_index].[baseSubscriptionId] AS 'baseSubscriptionId' 
-        , [ns_custom_subscription].[internalId] AS 'subscriptionId'
+        , [xrf_index].[subscriptionId] AS 'subscriptionId'
         , [xrf_index].[salesOrderId]  AS 'salesOrderId'
-        , [xrf_index].[salesOrderLine]  AS 'salesOrderLine'
+        , [xrf_index].[salesOrderItemLineId]  AS 'salesOrderLine'
         , [xrf_index].[invoiceId]  AS 'invoiceId'
-        , [xrf_index].[invoiceLine]  AS 'invoiceLine'
+        , [xrf_index].[invItemLineId]  AS 'invoiceLine'
         , [xrf_index].[invItemId]  AS 'invItemId'
-        , [xrf_index].[soItemId]  AS 'soItemId'
+        , [xrf_index].[salesOrderItemId]  AS 'soItemId'
 --2
         , [xrf_index].[salesOrgId]  AS 'salesOrgId'
         , [xrf_index].[salesOutId]  AS 'salesOutId'
-        , [xrf_index].[salesOutLine]  AS 'salesOutLine'
+        , [xrf_index].[salesOutLineId]  AS 'salesOutLine'
         , [xrf_index].[classId]  AS 'classId'
-        , [ns_custom_subscription].[customFieldList-custrecord_subscription_item] AS 'itemId'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_subscription_bill_to_customer],-1) AS 'billToCustomerId'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_subscription_end_customer],-1) AS 'endCustomerId'
-        , -1 AS 'resellerId'   --ISNULL([ns_custom_subscription].[customFieldList-custrecord_subscription_end_customer],-1) AS 'resellerId'
-        , [ns_custom_subscription].[customFieldList-custrecord_subscription_start_date] AS 'startDateId'
-        , [ns_custom_subscription].[customFieldList-custrecord_subscription_end_date] AS 'endDateId'
+        , [vw_custom_subscription].[customFieldList-custrecord_subscription_item] AS 'itemId'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_subscription_bill_to_customer],-1) AS 'billToCustomerId'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_subscription_end_customer],-1) AS 'endCustomerId'
+        , [xrf_index].[resellerId] AS 'resellerId'  
+        , [vw_custom_subscription].[customFieldList-custrecord_subscription_start_date] AS 'startDateId'
+        , [vw_custom_subscription].[customFieldList-custrecord_subscription_end_date] AS 'endDateId'
 --3
-        , [ns_custom_subscription].[customFieldList-custrecord_subscription_cost] AS 'invoiceAmt'   -- Should we be using invoice_dim.rate???
+        , [vw_custom_subscription].[customFieldList-custrecord_subscription_cost] AS 'invoiceAmt'   -- Should we be using invoice_dim.rate???
         , CONVERT(money,
-            CASE WHEN  [dbo].[ufn_datediff_365]([ns_custom_subscription].[customFieldList-custrecord_subscription_start_date], [ns_custom_subscription].[customFieldList-custrecord_subscription_end_date]) > 0 
-                  THEN [ns_custom_subscription].[customFieldList-custrecord_subscription_cost]*(365.0/[dbo].[ufn_datediff_365]([ns_custom_subscription].[customFieldList-custrecord_subscription_start_date], [ns_custom_subscription].[customFieldList-custrecord_subscription_end_date]))
+            CASE WHEN  [dbo].[ufn_datediff_365]([vw_custom_subscription].[customFieldList-custrecord_subscription_start_date], [vw_custom_subscription].[customFieldList-custrecord_subscription_end_date]) > 0 
+                  THEN [vw_custom_subscription].[customFieldList-custrecord_subscription_cost]*(365.0/[dbo].[ufn_datediff_365]([vw_custom_subscription].[customFieldList-custrecord_subscription_start_date], [vw_custom_subscription].[customFieldList-custrecord_subscription_end_date]))
                   ELSE 0
            END    ) AS 'invoiceAmtPerYr'
 
         , CONVERT(money,
             ISNULL(
               CASE 
-                WHEN [dbo].[ufn_datediff_365]([ns_custom_subscription].[customFieldList-custrecord_subscription_start_date], [ns_custom_subscription].[customFieldList-custrecord_subscription_end_date] ) > 0 
-                  THEN [ns_custom_subscription].[customFieldList-custrecord_subscription_cost]
+                WHEN [dbo].[ufn_datediff_365]([vw_custom_subscription].[customFieldList-custrecord_subscription_start_date], [vw_custom_subscription].[customFieldList-custrecord_subscription_end_date] ) > 0 
+                  THEN [vw_custom_subscription].[customFieldList-custrecord_subscription_cost]
                   ELSE 0
-               END  * (365.0/[dbo].[ufn_datediff_365]([ns_custom_subscription].[customFieldList-custrecord_subscription_start_date], [ns_custom_subscription].[customFieldList-custrecord_subscription_end_date] ) )
+               END  * (365.0/[dbo].[ufn_datediff_365]([vw_custom_subscription].[customFieldList-custrecord_subscription_start_date], [vw_custom_subscription].[customFieldList-custrecord_subscription_end_date] ) )
             ,0) ) AS 'arrAmtPerYr'
 
         , 0 AS 'CreditAmt'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_number_of_seats_2],0) AS 'seats'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_amplify_hours],0) AS 'amplifyHrs'
-        , ISNULL(CONVERT(int, [ns_custom_subscription].[customFieldList-custrecord_number_of_seats]),0) AS 'extremeHrs'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_vmrs],0) AS 'vmrs'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_recording_hours],0) AS 'recordingHrs'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_number_of_seats_2],0) AS 'seats'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_amplify_hours],0) AS 'amplifyHrs'
+        , ISNULL(CONVERT(int, [vw_custom_subscription].[customFieldList-custrecord_number_of_seats]),0) AS 'extremeHrs'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_vmrs],0) AS 'vmrs'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_recording_hours],0) AS 'recordingHrs'
 --4  
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_number_of_seats_2],0) AS 'totalSeats'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_amplify_hours],0) AS 'totalAmplifyHrs'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_vmrs],0) AS 'totalVmrs'
-        , ISNULL([ns_custom_subscription].[customFieldList-custrecord_recording_hours],0) AS 'totalRecordingHrs'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_number_of_seats_2],0) AS 'totalSeats'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_amplify_hours],0) AS 'totalAmplifyHrs'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_vmrs],0) AS 'totalVmrs'
+        , ISNULL([vw_custom_subscription].[customFieldList-custrecord_recording_hours],0) AS 'totalRecordingHrs'
         , 0 AS 'cumArrAmtPerYr'
         , 0 AS 'arrAmtChg'
         , 0 AS 'tierChg'
@@ -227,8 +228,8 @@ BEGIN TRY
         , 0 AS 'isUpDngrade'
         , 0 AS 'isExpansion'
         , 0 AS 'isChurn'
-        FROM [ns_custom_subscription]
-        JOIN [xrf_index] ON [xrf_index].[subscriptionId] = [ns_custom_subscription].[internalId]
+        FROM [vw_custom_subscription]
+        JOIN [xrf_index] ON [xrf_index].[subscriptionId] = [vw_custom_subscription].[internalId]
          AND [xrf_index].[isBase] = 1;
 
          -- log results
@@ -236,10 +237,10 @@ BEGIN TRY
                @ExitTxt = @MidMsg+CONVERT(varchar,@@ROWCOUNT)+' rows updated'
         EXEC [sp_message_handler] @currentTime, @ExitTxt, @ProcName ;
 
-/****        -- Now insert Credit Memos
+        -- Now insert Credit Memos
         INSERT INTO [fact_arr]
-        ( xrfIndexId, baseSubscriptionId, subscriptionId, salesOrderId, salesOrderLine, invoiceId, invoiceLine, invItemId, soItemId, 
-          salesOrgId, salesOutId, salesOutLine, classId, itemId, billToCustomerId, endCustomerId, resellerId, startDateId, endDateId, 
+        ( xrfIndexId, baseSubscriptionId, subscriptionId, salesOrderId, salesOrderItemLineId, invoiceId, invItemLineId, invItemId, salesOrderItemId, 
+          salesOrgId, salesOutId, salesOutLineId, classId, itemId, billToCustomerId, endCustomerId, resellerId, startDateId, endDateId, 
           invoiceAmt, invoiceAmtPerYr, arrAmtPerYr, creditAmt, seats, amplifyHrs, extremeHrs, vmrs, recordingHrs, 
           totalSeats, totalAmplifyHrs, totalVmrs, totalRecordingHrs, cumArrAmtPerYr, arrAmtChg, tierChg, seatsChg, termDaysChg, vmrsChg, 
           isNew, isRenewal, isLateRenew, renewGapDays, isCreditMemo, isFeature, isUpDngrade, isExpansion, isChurn )
@@ -248,15 +249,15 @@ BEGIN TRY
         , [fact_arr].[baseSubscriptionId] AS 'baseSubscriptionId'
         , [fact_arr].[subscriptionId] AS 'subscriptionId'
         , [fact_arr].[salesOrderId] AS 'salesOrderId'
-        , [fact_arr].[salesOrderLine] AS 'salesOrderLine'
+        , [fact_arr].[salesOrderItemLineId] AS 'salesOrderItemLineId'
         , [fact_arr].[invoiceId] AS 'invoiceId'
-        , [fact_arr].[invoiceLine] AS 'invoiceLine'
+        , [fact_arr].[invItemLineId] AS 'invItemLineId'
         , [fact_arr].[invItemId] AS 'invItemId'
-        , [fact_arr].[soItemId] AS 'soItemId'
+        , [fact_arr].[salesOrderItemId] AS 'salesOrderItemId'
 --2
         , [fact_arr].[salesOrgId] AS 'salesOrgId'
         , [fact_arr].[salesOutId] AS 'salesOutId'
-        , [fact_arr].[salesOutLine] AS 'salesOutLine'
+        , [fact_arr].[salesOutLineId] AS 'salesOutLineId'
         , [fact_arr].[classId] AS 'classId'
         , [fact_arr].[itemId] AS 'itemId'
         , [fact_arr].[billToCustomerId] AS 'billToCustomerId'
@@ -298,12 +299,46 @@ BEGIN TRY
         FROM [dim_creditmemo] 
         JOIN [fact_arr] ON [fact_arr].[subscriptionId] = [dim_creditmemo].[subscriptionId]
         WHERE [fact_arr].[isCreditMemo] = 0
-
+        ;
          -- log results
         SELECT @currentTime = CONVERT(nvarchar(100), sysdatetime()),
                @ExitTxt = @MidMsg+CONVERT(varchar,@@ROWCOUNT)+' rows updated'
         EXEC [sp_message_handler] @currentTime, @ExitTxt, @ProcName ;
-****/
+
+ 
+        -- set ARR values invoiceAmtPerYr, arrAmtPerYr and creditAmt
+        UPDATE fact_arr SET 
+
+        invoiceAmtPerYr =  CONVERT(money,
+            CASE WHEN sub2.entitledDays > 0 
+                  THEN [vw_custom_subscription].[customFieldList-custrecord_subscription_cost]*(365.0/sub2.entitledDays)
+                  ELSE 0
+           END    )
+
+        , arrAmtPerYr = CONVERT(money,ISNULL(
+          ( CASE 
+              WHEN sub2.entitledDays > 0 
+                THEN [vw_custom_subscription].[customFieldList-custrecord_subscription_cost]
+                ELSE 0
+             END 
+          + ISNULL(CASE WHEN (sub2.refTypeId < 9) AND (sub2.RefType != 'CreditMemo')
+                THEN
+                    CASE WHEN DATEDIFF(DD,sub2.startDate,sub1.endDate) > 0   -- CONVERT(int,sub1.endDate-sub2.startDate) > 0
+                        THEN ISNULL(CONVERT(money,(1.0*[dbo].[ufn_datediff_365](sub2.startDate,sub1.endDate)/sub1.entitledDays)*sub1.invoiceAmount),0)
+                    END
+                ELSE 0
+             END,0 ) ) * (365.0/sub2.entitledDays)
+        ,0) )
+
+        , creditAmt = CONVERT(money,ISNULL(
+            CASE WHEN (sub2.refTypeId < 9) AND (sub2.RefType != 'CreditMemo')
+              THEN
+                  CASE WHEN DATEDIFF(DD,sub2.startDate,sub1.endDate) > 0  --CONVERT(int,sub1.endDate-sub2.startDate)
+                      THEN ISNULL(CONVERT(money,(1.0*[dbo].[ufn_datediff_365](sub2.startDate,sub1.endDate)/sub1.entitledDays)*sub1.invoiceAmount),0)
+                  END
+             END, 0) )
+
+
         -- For Features zero out termDays and vmrs, set AmtChg to sign of invoiceAmt
         -- Still need to set to zero when comparing Feature to next subscription
         UPDATE [fact_arr] SET

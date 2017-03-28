@@ -124,7 +124,7 @@ BEGIN TRY
         FROM [vw_salesOrder] 
         JOIN [vw_salesOrder_itemList] ON [vw_salesOrder_itemList].[internalId] = [vw_salesOrder].[internalId]
         RIGHT OUTER JOIN [xrf_index] ON [xrf_index].[salesOrderId] = ISNULL([vw_salesOrder].[internalId],-1)
-                AND [xrf_index].[salesOrderLine] = ISNULL(TRY_CONVERT(int,[vw_salesOrder_itemlist].[line]),1)
+                AND [xrf_index].[salesOrderItemLineId] = ISNULL(TRY_CONVERT(int,[vw_salesOrder_itemlist].[line]),1)
         ORDER BY ISNULL(CONVERT(int,[vw_salesOrder].[internalId]),-1) 
                , ISNULL(TRY_CONVERT(int,[vw_salesOrder_itemlist].[line]),1)  ;
 

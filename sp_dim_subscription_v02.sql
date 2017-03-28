@@ -16,9 +16,10 @@ GO
 **                       
 **
 ** 
-** created:  2/20/2017   mmccanlies 
-** revised:  3/07/2017      "            Revised to use source views instead of tables i.e. vw_custom_subscription vs. ns_custom_subscription
-**           2/20/2017   mmccanlies      major updates for bucket logic
+** created:  02/20/2017   mmccanlies 
+** revised:  02/20/2017   mmccanlies      major updates for bucket logic
+**           03/07/2017      "            Revised to use source views instead of tables i.e. vw_custom_subscription vs. ns_custom_subscription
+**           03/17/2017      "            Updated field names for xrf_index
 **************************************************************************************************/
 ALTER PROCEDURE [sp_dim_subscription]
 (
@@ -45,6 +46,7 @@ BEGIN TRY
             TRUNCATE TABLE [dim_subscription]
 
         -- Major Code Sections --
+        -- insert subscriptions 
         INSERT INTO [dim_subscription] 
         ( xrfIndexId, baseSubscriptionId, subscriptionId, baseSubscription, subscription, isBase, refType, refTypeId, refTypeTxt, tierName, tierId, tierLvl, 
           seats, totalSeats, extraSeats, creditMemoNo, featureOrBase, cloudFeatures, featureType, featureAmt, amplifyQty, extremeQty, 
@@ -141,7 +143,7 @@ BEGIN TRY
         , DATEDIFF(MM, [vw_custom_subscription].[customFieldList-custrecord_subscription_start_date], [vw_custom_subscription].[customFieldList-custrecord_subscription_end_date]) AS 'entitledMos'
         , [dbo].[ufn_datediff_365]([vw_custom_subscription].[customFieldList-custrecord_subscription_start_date], [vw_custom_subscription].[customFieldList-custrecord_subscription_end_date]) AS 'entitledDays'
 
-        , 0 AS 'invoiceAmt'
+        , [vw_custom_subscription].[customFieldList-custrecord_subscription_cost] AS 'invoiceAmt'
         , CONVERT(date,NULL) AS 'invoiceDate'
         , ISNULL([vw_custom_subscription].[customFieldList-custrecord_standard_discount_pct],0)/100.0 AS 'stdDiscount'
         , ISNULL([vw_custom_subscription].[customFieldList-custrecord_orn_discount_pct],0)/100.0      AS 'ornDiscount'
@@ -169,7 +171,8 @@ BEGIN TRY
 --        JOIN [vw_test_grp] ON  [vw_test_grp].[subscriptionId] = [vw_custom_subscription].[internalId] 
         ORDER BY ISNULL(CONVERT(int, [vw_custom_subscription].[customFieldList-custrecord_base_subscription]),-1) ASC 
                , CONVERT(date,[vw_custom_subscription].[customFieldList-custrecord_subscription_start_date]) 
-               , ISNULL(CONVERT(int, [vw_custom_subscription].[internalId]),-1) ;
+               , ISNULL(CONVERT(int, [vw_custom_subscription].[internalId]),-1) 
+        ;
 
         -- log result
         SELECT @currentTime = CONVERT(nvarchar(100), sysdatetime()),
@@ -182,7 +185,7 @@ BEGIN TRY
         -- dim_invoice must be loaded and updated before dim_subscription
         -- Set invoiceDates in dim_subscription
         UPDATE dim_subscription SET
-          invoiceAmount = [dim_invoice].[invRate]
+          invoiceAmount = [dim_invoice].[invAmt]
         , invoiceDate = [dim_invoice].[invoiceDate]
         FROM [dim_subscription]
         JOIN [dim_invoice] ON [dim_invoice].subscriptionId = [dim_subscription].subscriptionId
@@ -194,24 +197,22 @@ BEGIN TRY
     COMMIT TRANSACTION
 
     BEGIN TRANSACTION
-/****        -- insert credit memos
+        -- insert credit memos
         INSERT INTO dim_subscription
-        ( xrfIndexId, baseSubscriptionId, subscriptionId, parentId, baseSubscription, subscription, parentSubscription, creditMemoNo, isBase, refType, refTypeId, refTypeTxt, tierName, tierId, tierLvl 
+        ( xrfIndexId, baseSubscriptionId, subscriptionId, baseSubscription, subscription, creditMemoNo, isBase, refType, refTypeId, refTypeTxt, tierName, tierId, tierLvl 
         , seats, totalSeats, extraSeats, startDate, endDate, entitledYrs, entitledMos, entitledDays, invoiceAmount, invoiceDate, stdDiscount, ornDiscount, nsdDiscount, nsdApprovalNo
         , skuNo, endCustomerId, endCustomerName, endCustomerAddr, itemTypeId, itemType, itemId, salesOrderId, salesOrderLine, subscriptionStatusId, subscriptionStatus
         , featureType, featureAmt, amplifyQty, extremeQty, vmrsQty, cloudFeatures, vmrsLicenses, featureOrBase, ssoIncl, lyncIncl, maxUsersSet
         , maxUsersSetUnits, maxMtgParticipants, maxVMRs, maxVMRsUnits, endPointsAsUsers, recordingEnabled, recordingHrsIncl, BackgroundSet, isNew, isRenewal, isMidTerm
-        , isUpgrade, isCreditMemo, isAddSeats, isAddFeature 
+        , isUpgrade, isCreditMemo, isAddSeats, isAddFeature, renewalOrdr 
         )
-        SELECT 
+        SELECT DISTINCT 
           [dim_subscription].[xrfIndexId]
         , [dim_subscription].[baseSubscriptionId] AS 'baseSubscriptionId'
         , [dim_subscription].[subscriptionId] AS 'subscriptionId'
-        , [dim_subscription].[parentId] AS 'parentId'
         , [dim_subscription].[BaseSubscription] AS 'baseSubscription'
         , [dim_subscription].[subscription] AS 'subscription'
-        , [dim_subscription].[parentSubscription] AS 'parentSubscription'
-        , [vw_creditmemo].[tranId] AS 'creditMemoNo'
+        , [dim_subscription].[creditMemoNo] AS 'creditMemoNo'
         , [dim_subscription].[isBase] AS 'isBase'
         , [dim_subscription].[refType] AS 'refType'
         , [dim_subscription].[refTypeId] AS 'refTypeId'
@@ -220,14 +221,14 @@ BEGIN TRY
         , [dim_subscription].[tierId] AS 'tierId'
         , [dim_subscription].[tierLvl] AS 'tierLvl'
 --2
-        , [dim_subscription].[seats] AS 'seats'
-        , [dim_subscription].[seats] AS 'totalSeats'
-        , 0 AS 'extraSeats'
+        , -1.0*[dim_subscription].[seats] AS 'seats'
+        , -1.0*[dim_subscription].[seats] AS 'totalSeats'
+        , -1.0*[dim_subscription].[totalSeats] AS 'extraSeats'
         , [dim_subscription].[startDate] AS 'startDate'
-        , [dim_subscription].[endDate] AS 'endDate'
-        , [dim_subscription].[entitledYrs] AS 'entitledYrs'
-        , [dim_subscription].[entitledMos] AS 'entitledMos'
-        , [dim_subscription].[entitledDays] AS 'entitledDays'
+        , [dim_subscription].[endDate]   AS 'endDate'
+        , -1.0*[dim_subscription].[entitledYrs]   AS 'entitledYrs'
+        , -1.0*[dim_subscription].[entitledMos]   AS 'entitledMos'
+        , -1.0*[dim_subscription].[entitledDays]  AS 'entitledDays'
         , -1.0*[dim_subscription].[invoiceAmount] AS 'invoiceAmount'
         , [dim_subscription].[invoiceDate] AS 'invoiceDate'
         , [dim_subscription].[stdDiscount] AS 'stdDiscount'
@@ -247,83 +248,78 @@ BEGIN TRY
         , [dim_subscription].[subscriptionStatusId] AS 'subscriptionStatusId'
         , [dim_subscription].[subscriptionStatus] AS 'subscriptionStatus'
 --4
-        , [dim_subscription].[featureType] AS 'featureType'
-        , [dim_subscription].[featureAmt]  AS 'featureAmt'
+        , [dim_subscription].[featureType]      AS 'featureType'
+        , -1.0*[dim_subscription].[featureAmt]  AS 'featureAmt'
         , 0 AS 'amplifyQty'
         , 0 AS 'extremeQty'
         , 0 AS 'vmrsQty'
-        , [dim_subscription].[cloudFeatures] AS 'cloudFeatures'
-        , [dim_subscription].[vmrsLicenses]  AS 'vmrsLicenses'
-        , [dim_subscription].[featureOrBase] AS 'featureOrBase'
-        , [dim_subscription].[ssoIncl]       AS 'ssoIncl'
-        , [dim_subscription].[lyncIncl]      AS 'lyncIncl'
-        , [dim_subscription].[maxUsersSet]   AS 'maxUsersSet'
+        , [dim_subscription].[cloudFeatures]    AS 'cloudFeatures'
+        , -1.0*[dim_subscription].[vmrsLicenses] AS 'vmrsLicenses'
+        , [dim_subscription].[featureOrBase]    AS 'featureOrBase'
+        , 0 AS 'ssoIncl'
+        , 0 AS 'lyncIncl'
+        , -1.0*[dim_subscription].[maxUsersSet] AS 'maxUsersSet'
 --5
-        , [dim_subscription].[maxUsersSetUnits]   AS 'maxUsersSetUnits'
-        , [dim_subscription].[maxMtgParticipants] AS 'maxMtgParticipants'
-        , [dim_subscription].[maxVMRs]            AS 'maxVMRs'
-        , [dim_subscription].[maxVMRsUnits]       AS 'maxVMRsUnits'
-        , [dim_subscription].[endPointsAsUsers]   AS 'endPointsAsUsers'
-        , [dim_subscription].[recordingEnabled]   AS 'recordingEnabled'
-        , [dim_subscription].[recordingHrsIncl]   AS 'recordingHrsIncl'
-        , [dim_subscription].[BackgroundSet]      AS 'BackgroundSet'
-        , [dim_subscription].[isNew] AS 'isNew'
+        , [dim_subscription].[maxUsersSetUnits]        AS 'maxUsersSetUnits'
+        , -1.0*[dim_subscription].[maxMtgParticipants] AS 'maxMtgParticipants'
+        , -1.0*[dim_subscription].[maxVMRs]            AS 'maxVMRs'
+        , [dim_subscription].[maxVMRsUnits]            AS 'maxVMRsUnits'
+        , 0 AS 'endPointsAsUsers'
+        , 0 AS 'recordingEnabled'
+        , 0 AS 'recordingHrsIncl'
+        , 0 AS 'BackgroundSet'
+        , 0 AS 'isNew'
         , 0 AS 'isRenewal'
-        , [dim_subscription].[isMidTerm] AS 'isMidTerm'
+        , 0 AS 'isMidTerm'
 --6
         , 0 AS 'isUpgrade'
         , 1 AS 'isCreditMemo'
         , 0 AS 'isAddSeats'
         , 0 AS 'isAddFeature'
-        FROM [vw_creditmemo]
-        JOIN [vw_creditmemo_ItemList] ON [vw_creditmemo_ItemList].[internalId] = [vw_creditmemo].[internalId]
-        JOIN [dim_subscription] ON [dim_subscription].[creditMemoNo] = [vw_creditmemo].[tranId] 
-        JOIN [xrf_index] ON [xrf_index].[subscriptionId] = [dim_subscription].[subscriptionId]  ;
-
+        , -1 AS 'renewalOrdr'
+        FROM [dim_subscription]
+        WHERE [dim_subscription].[CreditMemoNo] IS NOT NULL
+        ;
         -- log result
         SELECT @currentTime = CONVERT(nvarchar(100), sysdatetime()),
                @ExitTxt = @MidMsg+CONVERT(varchar,@@ROWCOUNT)+' rows inserted'
         EXEC [sp_message_handler] @currentTime, @ExitTxt, @ProcName ;
-****/
+
         -- set values across all subscription records
         UPDATE s SET 
-          s.[parentId] = x.[parentId]
-        , s.[parentSubscription] = ( SELECT TOP 1 s2.subscription FROM dim_subscription s2 WHERE s2.baseSubscriptionId = x.baseSubscriptionId AND  s2.subscriptionId = x.parentId) 
-        , s.[isBase] = x.[isBase]
+          s.[isBase] = x.[isBase]
         , s.[overallOrdr] = x.[overallOrdr]
         , s.[renewalOrdr] = x.[renewalOrdr] 
         , s.[totalSeats] = x.[totalSeats]
         , s.[isNew] = x.[isNew]
         , s.[isRenewal] = x.[isRenewal]
         , s.[isUpgrade] = x.[isUpgrade]
-        , s.[isCreditMemo] = 0
         , s.[isMidTerm] = x.[isMidTerm]
         , s.[isAddFeature] = x.[isAddFeature]
         , s.[isAddSeats] = x.[isAddSeats]
         FROM [vw_subscription_update] x
         JOIN [dim_subscription] s ON s.baseSubscriptionId = x.baseSubscriptionId AND s.subscriptionId = x.subscriptionId
-
+        WHERE x.isCreditMemo = 0
+        ;
         -- log result
-        SELECT @currentTime = CONVERT(nvarchar(100), sysdatetime()),
-               @ExitTxt = @MidMsg+CONVERT(varchar,@@ROWCOUNT)+' rows inserted'
-        EXEC [sp_message_handler] @currentTime, @ExitTxt, @ProcName ;
+--        SELECT @currentTime = CONVERT(nvarchar(100), sysdatetime()),
+--               @ExitTxt = @MidMsg+CONVERT(varchar,@@ROWCOUNT)+' rows inserted'
+--        EXEC [sp_message_handler] @currentTime, @ExitTxt, @ProcName ;
 
+-- Consider moving the update in sp_subscription_details back to here
         -- set values just for Credit Memos
-        UPDATE s SET 
-          s.[parentId] = s.[subscriptionId]
-        , s.[parentSubscription] = s.[subscription]
-        , s.[renewalOrdr] = -1
-        , s.[totalSeats] = x.[totalSeats]
-        , s.[isNew] = x.[isNew]
-        , s.[isRenewal] = 0
-        , s.[isUpgrade] = 0
-        , s.[isCreditMemo] = 1
-        , s.[isMidTerm] = x.[isMidTerm]
-        FROM [vw_subscription_update] x
-        JOIN [dim_subscription] s ON s.baseSubscriptionId = x.baseSubscriptionId AND s.subscriptionId = x.subscriptionId
-        WHERE s.[isCreditMemo] = 1 ;
+--        UPDATE s SET 
+--          s.[renewalOrdr] = -1
+--        , s.[totalSeats] = x.[totalSeats]
+--        , s.[isNew] = x.[isNew]
+--        , s.[isRenewal] = 0
+--        , s.[isUpgrade] = 0
+--        , s.[isMidTerm] = x.[isMidTerm]
+--        FROM [vw_subscription_update] x
+--        JOIN [dim_subscription] s ON s.baseSubscriptionId = x.baseSubscriptionId AND s.subscriptionId = x.subscriptionId
+--        WHERE s.[isCreditMemo] = 1 
+--        ;
 
---> We need an update that sets totalSeats and Totals HERE <--
         -- log result
         SELECT @currentTime = CONVERT(nvarchar(100), sysdatetime()),
                @ExitTxt = @MidMsg+CONVERT(varchar,@@ROWCOUNT)+' rows updated'

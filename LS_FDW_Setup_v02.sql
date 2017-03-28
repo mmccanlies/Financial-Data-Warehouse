@@ -70,17 +70,17 @@ CREATE TABLE [utl_batch_order] (
 GO
 INSERT INTO utl_batch_order 
   ( procBatchId, procBatchName, procName, procId, procOrder, procTruncateTbl, procDebug, isActive ) VALUES
-  ( 1, 'Full Reload', 'sp_xrf_index',                   10010,  1, 1, 0, 1 )
-, ( 1, 'Full Reload', 'sp_fact_arr',                    10020,  2, 1, 0, 1 )
-, ( 1, 'Full Reload', 'sp_dim_customer',                10030,  3, 1, 0, 0 )
-, ( 1, 'Full Reload', 'sp_dim_product',                 10040,  4, 1, 0, 0 )
+, ( 1, 'Full Reload', 'sp_dim_customer',                10030,  1, 1, 0, 0 )
+, ( 1, 'Full Reload', 'sp_dim_product',                 10040,  2, 1, 0, 0 )
+, ( 1, 'Full Reload', 'sp_dim_salesorg',                10110,  3, 1, 0, 0 )
+  ( 1, 'Full Reload', 'sp_xrf_index',                   10010,  4, 1, 0, 1 )
 , ( 1, 'Full Reload', 'sp_dim_invoice',                 10050,  5, 1, 0, 1 )
 , ( 1, 'Full Reload', 'sp_dim_subscription',            10060,  6, 1, 0, 1 )
 , ( 1, 'Full Reload', 'sp_dim_creditmemo',              10070,  7, 1, 0, 1 )
 , ( 1, 'Full Reload', 'sp_dim_salesorder',              10080,  8, 1, 0, 1 )
-, ( 1, 'Full Reload', 'sp_dim_subscription_details',    10090,  9, 1, 0, 1 )
-, ( 1, 'Full Reload', 'sp_dim_salesout',                10100, 10, 1, 0, 1 )
-, ( 1, 'Full Reload', 'sp_dim_salesorg',                10110, 11, 1, 0, 0 )
+, ( 1, 'Full Reload', 'sp_fact_arr',                    10020,  9, 1, 0, 1 )
+, ( 1, 'Full Reload', 'sp_dim_subscription_details',    10090, 10, 1, 0, 1 )
+, ( 1, 'Full Reload', 'sp_dim_salesout',                10100, 11, 1, 0, 1 )
 GO
 
 

@@ -14,20 +14,22 @@ CREATE TABLE [xrf_index] (
     [xrfIndexId] [bigint] IDENTITY(1,1) NOT NULL,
 	[baseSubscriptionId] [int] NULL,
 	[subscriptionId] [int] NULL,
+    [subsLine] [int] NULL,
+    [salesOrderToSubsLine] [int] NULL, 
     [creditMemoId] [int] NULL,
     [creditMemoNo] [nvarchar](50) NULL,
 	[isBase] [int] NULL,
 	[salesOrderId] [int] NULL,
-	[salesOrderLine] [int] NULL,
+	[invoiceId] [int] NULL,
+	[salesOrderItemLineId] [int] NULL,
+	[invItemLineId] [int] NULL,
+	[salesOutId] [int] NULL,
+	[salesOutLineId] [int] NULL,
 	[classId] [int] NULL,
 	[itemId] [int] NULL,
-	[invoiceId] [int] NULL,
-	[invoiceLine] [int] NULL,
-	[salesOutId] [int] NULL,
-	[salesOutLine] [int] NULL,
-  	[invItemId] [int] NULL,
-    [soItemid] [int] NULL,
-	[salesOrgId] [nvarchar](50) NULL,
+    [salesOrderItemid] [int] NULL,
+ 	[invItemId] [int] NULL,
+ 	[salesOrgId] [nvarchar](50) NULL,
 	[billCustomerId] [int] NULL,
 	[endCustomerId] [int] NULL,
 	[resellerId] [int] NULL
@@ -86,6 +88,7 @@ description2     varchar(100),
 ** by: mmccanlies       02/05/2017
 ** Create fact_arr
 ***************************************************************************************************************************/
+-- DROP INDEX NCL_Fact_ARR_XrfIndexId ON [xrf_index]
 --IF object_id('fact_arr', 'U') IS NOT NULL
 --DROP TABLE [fact_arr]
 GO
@@ -94,14 +97,14 @@ CREATE TABLE [fact_arr](
 	[baseSubscriptionId] [int] NULL,
 	[subscriptionId] [int] NOT NULL,
 	[salesOrderId] [int] NOT NULL,
-	[salesOrderLine] [int] NULL,
+	[salesOrderItemLineId] [int] NULL,
 	[invoiceId] [int]  NULL,
-	[invoiceLine] [int] NULL,
+	[invItemLineId] [int] NULL,
 	[invItemId] [int] NULL,
-	[soItemId] [int] NULL,
+	[salesOrderItemId] [int] NULL,
 	[salesOrgId] [int] NOT NULL,
 	[salesOutId] [int] NULL,
-	[salesOutLine] [int] NULL,
+	[salesOutLineId] [int] NULL,
 	[classId] [int] NULL,
 	[itemId] [int] NULL,
 	[billToCustomerId] [int] NULL,
@@ -306,13 +309,15 @@ GO
 ** Create dim_invoice table from ns_invoice
 **
 ***************************************************************************************************************************/
+-- DROP INDEX NCL_Dim_Invoice_XrfIndexId ON [dim_invoice] 
 --IF object_id('dim_invoice', 'U') IS NOT NULL
 --DROP TABLE [dim_invoice] 
 GO
 CREATE TABLE [dim_invoice](
     [xrfIndexId] [bigint] NOT NULL,
 	[invoiceId] [int] NOT NULL,
-	[invoiceLine] [int] NULL,
+	[invItemLineId] [int] NULL,
+    [invItemId] [int] NULL,
 	[invoiceNo] [nvarchar](50) NULL,
 	[invoiceDate] [datetime] NULL,
 	[invCustColTerm] [int] NULL,
@@ -326,27 +331,29 @@ CREATE TABLE [dim_invoice](
 	[skuNo] [nvarchar](50) NULL,
 	[invDescription] [nvarchar](100) NULL,
 	[invLocName] [nvarchar](50) NULL,
-	[invRate] [nvarchar](50) NOT NULL,
-	[invQty] [numeric](37, 0) NULL,
+    [invAmt] [money] NULL,
+	[invRate] [money] NULL,
+	[invOrigQty] [float] NULL,
+	[invAltQty] [int] NULL,
 	[invUnits] [nvarchar](50) NULL,
 	[invPriceName] [nvarchar](50) NULL,
 	[invIncAcct] [nvarchar](50) NULL,
-	[BillToCustomerId] [nvarchar](50) NOT NULL,
+	[BillToCustomerId] [nvarchar](50) NULL,
 	[BillToCustomerName] [nvarchar](100) NULL,
-	[BillToCustomerAddress] [nvarchar](4000) NOT NULL,
+	[BillToCustomerAddress] [nvarchar](4000) NULL,
 	[billingDate] [datetime] NULL,
-	[invAutoSalesOut] [nvarchar](50) NOT NULL,
+	[invAutoSalesOut] [nvarchar](50) NULL,
 	[invRevRecStartDate] [datetime] NULL,
 	[invRevRecEndDate] [datetime] NULL,
 	[invRevRecSchedName] [nvarchar](50) NULL,
 	[subscriptionId] [int] NULL,
-	[salesOrderId] [int] NULL,
-	[invItemId] [int] NOT NULL
+	[salesOrderItemId] [int] NULL
 ) 
 GO
 CREATE NONCLUSTERED INDEX NCL_Dim_Invoice_XrfIndexId ON [dim_invoice] (xrfIndexId)
 GO
-
+CREATE NONCLUSTERED INDEX NCL_Dim_Invoice_InvoiceLineItemId ON [dim_invoice] (invoiceId, invItemLineId, invItemId )
+GO
 
 /***************************************************************************************************************************
 **                                          dim_salesOrder
@@ -850,6 +857,7 @@ SELECT DISTINCT
   [xrfIndexId]
 , [baseSubscriptionId]
 , [subscriptionId]
+, creditMemoNo
 , [isBase]
 , [tierName]
 , [tierLvl]
@@ -909,24 +917,25 @@ GO
 --DROP VIEW [vw_subscription_sequence]
 GO
 CREATE VIEW [vw_subscription_sequence] AS 
-SELECT 
-  sub1.baseSubscriptionId AS Base
-, sub1.subscriptionId AS Sub1
-, sub2.subscriptionId AS Sub2
-FROM [vw_subscription_list] sub1
-JOIN [vw_subscription_list] sub2 ON sub2.baseSubscriptionId = sub1.baseSubscriptionId
-    AND (sub2.RnkOrdr-sub1.RnkOrdr) = 1
-    AND sub1.isCreditMemo != 1
-UNION ALL
-SELECT 
-  sub1.baseSubscriptionId AS Base
-, sub1.subscriptionId AS Sub1
-, sub2.subscriptionId AS Sub2
-FROM [vw_subscription_list] sub1
-JOIN [vw_subscription_list] subm ON subm.baseSubscriptionId = sub1.baseSubscriptionId AND (subm.RnkOrdr-sub1.RnkOrdr) = 1
-    AND subm.isCreditMemo = 1
-JOIN [vw_subscription_list] sub2 ON sub2.baseSubscriptionId = sub1.baseSubscriptionId
-    AND (sub2.RnkOrdr-sub1.RnkOrdr) = 2 
+    SELECT DISTINCT
+      sub1.baseSubscriptionId AS Base
+    , sub1.subscriptionId AS Sub1
+    , sub2.subscriptionId AS Sub2
+    FROM [vw_subscription_list] sub1
+    JOIN [vw_subscription_list] sub2 ON sub2.baseSubscriptionId = sub1.baseSubscriptionId
+        AND (sub2.RnkOrdr-sub1.RnkOrdr) = 1
+        AND sub1.creditMemoNo IS NULL --AND sub2.CreditMemoNo IS NULL
+    UNION 
+    SELECT DISTINCT 
+      sub1.baseSubscriptionId AS Base
+    , sub1.subscriptionId AS Sub1
+    , sub2.subscriptionId AS Sub2
+    FROM [vw_subscription_list] sub1
+    JOIN [vw_subscription_list] subm ON subm.baseSubscriptionId = sub1.baseSubscriptionId AND (subm.RnkOrdr-sub1.RnkOrdr) = 1
+        AND subm.CreditMemoNo IS NOT NULL
+    JOIN [vw_subscription_list] sub2 ON sub2.baseSubscriptionId = sub1.baseSubscriptionId
+        AND (sub2.RnkOrdr-sub1.RnkOrdr) = 2 
+GO
 
 
 /**************************************************************************************************************************

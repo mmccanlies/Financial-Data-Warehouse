@@ -4,6 +4,7 @@
 ** Load Credit Memo
 ** created:  2/20/2017   mmccanlies           
 ** revised:  3/07/2017      "            Revised to use source views instead of source tables 
+**          03/13/2017      "            Changed for new creditmemo handling and removed columns already in dim_subscription 
 **************************************************************************************************/
 ALTER PROCEDURE [sp_dim_creditmemo] 
 (
@@ -30,65 +31,49 @@ BEGIN TRY
             TRUNCATE TABLE [dim_creditmemo]
 
         -- Major Code Sections --
-        INSERT INTO [dim_creditmemo]
-        ( creditMemoId, creditMemoLine, creditMemoNo, xrfIndexId, returnAuthId, rmaId, rmaDescr, rmaText, cmSalesOrderId, productClass
-        , cmItemId, cmSkuNo, productFamilyPL, priceName, qty, units, rate, amt, incomeAcct, departmentName, locName, cmDate
-        , baseSubscriptionId, subscriptionId, baseSubscription, subscription, isBase, refType, refTypeId, refTypeTxt 
-        , tierName, tierId, tierLvl, seats, cumSeats, startDate, endDate, isCreditMemo, invoiceAmt, salesOrderId, salesOrderLine, subscriptionStatusId, subscriptionStatus
+         INSERT INTO [dim_creditmemo]
+        (  baseSubscriptionId, subscriptionId, baseSubscription, subscription, creditMemoNo, xrfIndexId, creditMemoId, creditMemoLine, returnAuthId, rmaId
+         , rmaDescr, rmaText, productClass, ItemId, SkuNo, productFamilyPL, priceName, qty, units, rate, invoiceAmt, incomeAcct, departmentName, locName, memoDate
         )
         SELECT DISTINCT
-          ISNULL(CONVERT(int,[vw_creditmemo_ItemList].[internalId]),-1) AS 'creditMemoId'
+          [dim_subscription].[baseSubscriptionId] AS 'baseSubscriptionId'
+        , [dim_subscription].[subscriptionId] AS 'subscriptionId'
+        , [dim_subscription].[BaseSubscription] AS 'baseSubscription'
+        , [dim_subscription].[subscription] AS 'subscription'
+        , [dim_subscription].[creditMemoNo] AS 'creditMemoNo'
+        , -1 AS 'xrfIndexId'
+--        , [xrf_index].[xrfIndexId] AS 'xrfIndexId'
+--        , [xrf_index].[salesOrderId]
+--        , [xrf_index].[salesOrderLine]
+        , ISNULL(CONVERT(int,[vw_creditmemo_ItemList].[internalId]),-1) AS 'creditMemoId'
         , ISNULL(CONVERT(int,[vw_creditmemo_ItemList].[line]),-1) AS 'creditMemoLine'
-        , [vw_creditmemo].[tranId] AS 'creditMemoNo'
-        , [xrf_index].[xrfIndexId] AS 'xrfIndexId'
         , ISNULL(CONVERT(int,[vw_creditmemo].[createdFrom-internalId]),-1) AS 'returnAuthId'
         , [vw_creditmemo].[createdFrom-internalId] AS 'rmaId'
+--2
         , [vw_creditmemo].[createdFrom-name] AS 'rmaDescr'
         , [vw_creditMemo].[createdFrom-name] AS 'rmaText'
-        , [vw_creditMemo].[customFieldList-custbody_rma_sales_order] AS 'cmSalesOrderId'
         , [vw_creditmemo_ItemList].[class-name] AS 'productClass'
---2
-        , ISNULL(CONVERT(int,[vw_creditmemo_ItemList].[item-internalId]),0) AS 'cmItemId'
-        , [vw_creditmemo_ItemList].[item-name] AS 'cmSkuNo'
+        , ISNULL(CONVERT(int,[vw_creditmemo_ItemList].[item-internalId]),0) AS 'ItemId'
+        , [vw_creditmemo_ItemList].[item-name] AS 'SkuNo'
         , [vw_creditmemo_ItemList].[description] AS 'productFamilyPL'
         , [vw_creditmemo_ItemList].[price-name] AS 'priceName'
         , [vw_creditmemo_ItemList].[quantity] AS 'qty'
         , [vw_creditmemo_ItemList].[units-name] AS 'units'
-        , ISNULL(CONVERT(money,[vw_creditmemo_ItemList].[rate]),0) AS 'rate'
-        , ISNULL(CONVERT(money,[vw_creditmemo_ItemList].[amount]),0) AS 'amt'
+        , ISNULL(CONVERT(money,[vw_creditmemo_ItemList].[rate]),0) AS 'Rate'
+        , ISNULL(CONVERT(money,[vw_creditmemo_ItemList].[amount]),0) AS 'InvoiceAmt'
         , [vw_creditmemo_ItemList].[customFieldList-custcol_ava_incomeaccount] AS 'incomeAcct'
         , [vw_creditmemo_ItemList].[department-name] AS 'departmentName'
         , [vw_creditmemo_ItemList].[location-name] AS 'locName'
-        , [vw_creditmemo].[tranDate] AS 'cmDate'
---3
-        , [dim_subscription].[baseSubscriptionId] AS 'baseSubscriptionId'
-        , [dim_subscription].[subscriptionId] AS 'subscriptionId'
---        , [dim_subscription].[parentId] AS 'parentId'
-        , [dim_subscription].[BaseSubscription] AS 'baseSubscription'
-        , [dim_subscription].[subscription] AS 'subscription'
---        , [dim_subscription].[parentSubscription] AS 'parentSubscription'
-        , [dim_subscription].[isBase] AS 'isBase'
-        , [dim_subscription].[refType] AS 'refType'
-        , [dim_subscription].[refTypeId] AS 'refTypeId'
-        , [dim_subscription].[refTypeId] AS 'refTypeTxt'
-        , [dim_subscription].[tierName] AS 'tierName'
-        , [dim_subscription].[tierId] AS 'tierId'
-        , [dim_subscription].[tierLvl] AS 'tierLvl'
-        , [dim_subscription].[seats] AS 'seats'
-        , 0 AS 'cumSeats'
-        , [dim_subscription].[startDate] AS 'startDate'
-        , [dim_subscription].[endDate] AS 'endDate'
-        , 1 AS 'isCreditMemo'
-        , -1.0*ISNULL(CONVERT(money,[vw_creditmemo_ItemList].[amount]),0) AS 'invoiceAmt'
-        , [dim_subscription].[salesOrderId] AS 'salesOrderId'
-        , [dim_subscription].[salesOrderLine] AS 'salesOrderLine'
-        , [dim_subscription].[subscriptionStatusId] AS 'subscriptionStatusId'
-        , [dim_subscription].[subscriptionStatus] AS 'subscriptionStatus'
+        , [vw_creditmemo].[tranDate] AS 'memoDate'
         -- INTO [dim_creditmemo]
         FROM [vw_creditmemo]
-        JOIN [vw_creditmemo_ItemList] ON [vw_creditmemo_ItemList].[internalId] = [vw_creditmemo].[internalId]
-        JOIN [dim_subscription] ON [dim_subscription].[creditMemoNo] = [vw_creditmemo].[tranId]
-        JOIN [xrf_index] ON [xrf_index].creditMemoId = [vw_creditmemo].[internalId]
+        JOIN [vw_creditmemo_ItemList] ON [vw_creditmemo_ItemList].[internalId] = [vw_creditmemo].[internalId] AND [vw_creditmemo_ItemList].[item-name] NOT LIKE '%Rebate%'
+        JOIN [dim_subscription] ON [dim_subscription].[creditMemoNo] = [vw_creditmemo].[tranId] 
+          AND [dim_subscription].[creditMemoNo] IS NOT NULL 
+          AND [dim_subscription].[isCreditMemo] = 1
+        JOIN [xrf_index] ON [xrf_index].[creditMemoNo] = [vw_creditmemo].[tranId] 
+          AND [xrf_index].salesOrderId = [dim_subscription].[salesOrderId] 
+          AND [xrf_index].[salesOrderLine] = [dim_subscription].[salesOrderLine]
         ORDER BY [dim_subscription].[baseSubscriptionId], [dim_subscription].[subscriptionId]
         ;
         -- log result
